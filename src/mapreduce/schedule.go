@@ -48,15 +48,17 @@ func schedule(jobName string, mapFiles []string, nReduce int, phase jobPhase, re
 
 		ipAddr := <- registerChan
 		s.Add(1)
-		go func (filename string, i int) {
+		go func (filename string, i int, ipAddr string) {
 
-			call(ipAddr, "Worker.DoTask", DoTaskArgs{JobName: jobName, File: filename, Phase: phase, TaskNumber: i, NumOtherPhase: n_other}, nil)
+			for !call(ipAddr, "Worker.DoTask", DoTaskArgs{JobName: jobName, File: filename, Phase: phase, TaskNumber: i, NumOtherPhase: n_other}, nil) {
+				ipAddr = <- registerChan
+			}
 			go func () {
 				registerChan <- ipAddr
 			} ()
 
 			s.Done()
-		} (mapFiles[i], i)
+		} (mapFiles[i], i, ipAddr)
 	}
 
 	s.Wait()
